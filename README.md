@@ -66,7 +66,6 @@ La base de conocimiento en Neo4j modela las publicaciones científicas con una e
 
 ### 🔗 Relaciones Dirigidas
 
-```cypher
 (:Autor)-[:ESCRIBIO]->(:Publicacion)
 (:Publicacion)-[:PERTENECE_A]->(:Area)
 (:Publicacion)-[:PUBLICADO_EN]->(:Lugar)
