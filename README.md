@@ -109,7 +109,6 @@ Cada componente de la arquitectura ha sido seleccionado bajo criterios de rendim
 
 Para ejecutar el sistema, crea un archivo `.env` en el directorio `BACKEND/` y configura las siguientes claves:
 
-```env
 NEO4J_URI=neo4j+ssc://tu-instancia.databases.neo4j.io
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=TuContraseñaSuperSegura
