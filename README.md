@@ -108,7 +108,7 @@ NEO4J_URI=neo4j+ssc://tu-instancia.databases.neo4j.io
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=TuContraseñaSuperSegura
 NEO4J_DATABASE=neo4j
-GROQ_API_KEY=gsk_AbCdEfGhIjKlMnOpQrStUvWxYz123456
+GROQ_API_KEY=gsk_tu-api-key
 
 | Variable | Descripción | Ejemplo |
 | :--- | :--- | :--- |
@@ -116,7 +116,7 @@ GROQ_API_KEY=gsk_AbCdEfGhIjKlMnOpQrStUvWxYz123456
 | **NEO4J_USERNAME** | Usuario de la base de datos | neo4j
 | **NEO4J_PASSWORD** | Contraseña de la base de datos | TuContraseñaSuperSegura
 | **NEO4J_DATABASE** | Nombre lógico de la DB | neo4j
-| **GROQ_API_KEY** | Token de autenticación para la API de Groq | gsk_AbCdEfGhIjKlMnOpQrStUvWxYz123456
+| **GROQ_API_KEY** | Token de autenticación para la API de Groq | gsk_tu-api-key
 
 [!WARNING]
 El sufijo +ssc en NEO4J_URI es obligatorio en entornos Windows para instruir al driver a confiar en los certificados SSL y evitar errores de conexión.
@@ -125,38 +125,38 @@ El sufijo +ssc en NEO4J_URI es obligatorio en entornos Windows para instruir al 
 Sigue estos pasos para tener el monorepositorio funcionando en tu entorno local.
 
 📦 1. Backend (FastAPI)
-# Navega al directorio del backend
+* Navega al directorio del backend
 cd BACKEND
 
-# Crea y activa un entorno virtual
+* Crea y activa un entorno virtual
 python -m venv venv
 
-# En Windows (PowerShell)
+* En Windows (PowerShell)
 .\venv\Scripts\activate
 
-# En macOS/Linux
+* En macOS/Linux
 source venv/bin/activate
 
-# Instala las dependencias
+* Instala las dependencias
 pip install fastapi uvicorn pydantic langchain-neo4j langchain-groq python-dotenv
 
-# Configura tu archivo .env (ver sección anterior)
+* Configura tu archivo .env (ver sección anterior)
 
-# Inicia el servidor de desarrollo
+* Inicia el servidor de desarrollo
 uvicorn server:app --port 8000 --reload
 
-# 🎨 2. Frontend (Next.js)
+#🎨 2. Frontend (Next.js)
 Abre una segunda terminal y ejecuta:
-# Navega al directorio del frontend
+* Navega al directorio del frontend
 cd FRONTEND
 
-# Instala las dependencias de Node.js
+* Instala las dependencias de Node.js
 npm install
 
-# Inicia el servidor de desarrollo de Next.js
+* Inicia el servidor de desarrollo de Next.js
 npm run dev
 
-# 🌐 3. Acceso
+🌐 3. Acceso
 Abre tu navegador y visita la interfaz en: http://localhost:5010
 
 ## 🧪 Guión de Validación (Demo)
