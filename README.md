@@ -1,17 +1,12 @@
-# 🤖 GraphRAG Academic Agent · IA Full-Stack (v2)
+# 🤖 GraphRAG Academic Agent · IA Full-Stack 
 
 <div align="center">
 
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-
 [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-
 [![Neo4j](https://img.shields.io/badge/Neo4j-AuraDB-4581C3?style=for-the-badge&logo=neo4j&logoColor=white)](https://neo4j.com/)
-
 [![Groq](https://img.shields.io/badge/Groq-Llama%203.3%2070B-00E5A0?style=for-the-badge&logo=llama&logoColor=black)](https://groq.com/)
-
 [![License](https://img.shields.io/badge/Licencia-MIT-yellow?style=for-the-badge)](LICENSE)
 
 *Agente de IA generativa basado en Grafos para la ingesta, consulta y descubrimiento semántico en el dominio de la Inteligencia Artificial académica.*
@@ -150,7 +145,7 @@ pip install fastapi uvicorn pydantic langchain-neo4j langchain-groq python-doten
 # Inicia el servidor de desarrollo
 uvicorn server:app --port 8000 --reload
 
-## 🎨 2. Frontend (Next.js)
+# 🎨 2. Frontend (Next.js)
 Abre una segunda terminal y ejecuta:
 # Navega al directorio del frontend
 cd FRONTEND
@@ -161,7 +156,7 @@ npm install
 # Inicia el servidor de desarrollo de Next.js
 npm run dev
 
-## 🌐 3. Acceso
+# 🌐 3. Acceso
 Abre tu navegador y visita la interfaz en: http://localhost:5010
 
 ## 🧪 Guión de Validación (Demo)
