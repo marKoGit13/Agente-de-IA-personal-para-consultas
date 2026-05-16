@@ -7,12 +7,13 @@ from langchain_neo4j import Neo4jGraph, GraphCypherQAChain
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 
+# IMPORT DE NUESTRA BASE DE DATOS LOCAL
+from database import SQLiteHistoryManager
+
 load_dotenv(override=True)
 
 def initialize_agent():
-    """Inicializa la conexión con Neo4j y retorna la cadena de Cypher y el LLM por separado."""
-    
-    # 1. Conexión con AuraDB
+    """Inicializa la infraestructura del Grafo y el Motor LLM."""
     graph = Neo4jGraph(
         url=os.getenv("NEO4J_URI"),
         username=os.getenv("NEO4J_USERNAME"), 
@@ -21,14 +22,13 @@ def initialize_agent():
         refresh_schema=True
     )
 
-    # 2. Configuración del motor LLM (Groq - Llama 3.3)
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
         temperature=0,
         groq_api_key=os.getenv("GROQ_API_KEY")
     )
 
-    # 3. Prompt de Ingeniería de Cypher con Guardarraíl
+    # Prompt adaptado para entender relaciones de contexto histórico
     CYPHER_GENERATION_TEMPLATE = """
     Task: Generate a valid Cypher query to answer the user's question about an Academic Publications database.
     You are an expert Neo4j developer. Use ONLY the allowed schema elements.
@@ -37,13 +37,16 @@ def initialize_agent():
     {schema}
 
     Instructions:
-    1. CRITICAL: If the question is NOT strictly related to academic publications, authors, institutions, venues, keywords, or AI areas,
-       do NOT attempt to solve it. Instead, return EXACTLY this valid Cypher query: RETURN "BLOCK_QUERY" AS error
-    2. Use case-insensitive matching ONLY for string properties using toLower().
-    3. CRITICAL: Do NOT use toLower() or toUpper() on numeric properties like year (año) or citations. Match numbers directly (e.g., p.year = 2024).
-    4. Return only the plain string query, no markdown blocks.
+    1. CRITICAL: If the question is NOT strictly related to academic publications, authors, venues, or AI fields, 
+       return EXACTLY this query: RETURN "BLOCK_QUERY" AS error
+    2. The user prompt may contain context from previous questions. Use it to resolve terms like "of those", "them", or "the previous ones".
+    3. Use case-insensitive matching ONLY for string properties using toLower().
+    4. Do NOT use toLower() on numeric properties like year (año) or citations.
+    5. Return only the plain string query, no markdown blocks.
 
-    Question: {question}
+    Question (with history context if applies): 
+    {question}
+
     Cypher Query:"""
 
     cypher_prompt = PromptTemplate(
@@ -51,7 +54,6 @@ def initialize_agent():
         input_variables=["schema", "question"]
     )
 
-    # 4. Construcción de la cadena Cypher
     chain = GraphCypherQAChain.from_llm(
         llm=llm,
         graph=graph,
@@ -59,57 +61,71 @@ def initialize_agent():
         cypher_prompt=cypher_prompt,
         validate_cypher=True,
         allow_dangerous_requests=True,
-        return_direct=True  # Mantenemos esto para interceptar el BLOCK_QUERY de forma segura
+        return_direct=True
     )
     
     return chain, llm
 
-def ask_expert(question: str, chain: GraphCypherQAChain, llm: ChatGroq) -> str:
-    """Procesa la pregunta, valida el dominio y pule el resultado en lenguaje natural fluido."""
+def ask_expert(chat_id: str, question: str, chain: GraphCypherQAChain, llm: ChatGroq, db: SQLiteHistoryManager) -> str:
+    """Procesa la pregunta del usuario inyectando memoria histórica y guardando la interacción automáticamente."""
     try:
-        # 1. Extraer los datos puros del Grafo
-        response: Dict[str, Any] = chain.invoke({"query": question})
+        # 1. Recuperar el historial acumulado en SQLite para este chat específico
+        historial_previo = db.get_chat_history_str(chat_id)
+        
+        # Enriquecemos la entrada combinando el historial y la nueva pregunta
+        input_contextual = f"Historial de Conversación:\n{historial_previo}\n\nPregunta Actual: {question}"
+
+        # 2. Ejecutar la cadena en Neo4j usando el contexto enriquecido
+        response: Dict[str, Any] = chain.invoke({"query": input_contextual})
         graph_output = response.get("result", "")
         
-        # 2. Validar Guardarraíl de dominio
+        # Guardarraíl de dominio
         if not graph_output or "BLOCK_QUERY" in str(graph_output):
             return "Lo siento, solo puedo ayudarte con información sobre publicaciones de IA."
         
-        # 3. PASO DE SÍNTESIS OPTIMIZADO: Convertir el array de Neo4j en una respuesta detallada
+        # 3. Paso de Síntesis: Generar respuesta fluida considerando la memoria
         synthesis_template = f"""
-        Eres un asistente de IA experto y analítico especializado en publicaciones académicas de Inteligencia Artificial.
-        Tu tarea es transformar los datos en bruto obtenidos de una base de datos de grafos en una respuesta redactada, clara, fluida y detallada en español para el usuario.
+        Eres un asistente analítico de publicaciones de IA. Traduce los datos del grafo en una respuesta fluida en español.
+        
+        Historial de la conversación para mantener coherencia:
+        {historial_previo}
 
-        Instrucciones de formato:
-        - CRITICAL: Incluye absolutamente TODOS los elementos encontrados en los datos del grafo, no omitas ninguno.
-        - Si los datos contienen una lista de elementos, ordénalos y preséntalos usando viñetas (bullet points) limpias.
-        - Sé profesional, directo y añade un breve contexto introductorio coherente con la pregunta.
+        Pregunta actual: {question}
+        Datos nuevos extraídos del Grafo: {graph_output}
 
-        Pregunta original del usuario: {question}
-        Datos extraídos del Grafo (Neo4j): {graph_output}
+        Respuesta final detallada en español (si es una lista usa viñetas, incluye TODOS los datos del grafo):"""
 
-        Respuesta final pulida en español:"""
-
-        # Llamada secundaria a Llama para el formateo estético
         polished_response = llm.invoke(synthesis_template)
-        return polished_response.content
+        final_answer = polished_response.content
+
+        # 4. PERSISTENCIA AUTOMÁTICA: Guardar la interacción completa en SQLite
+        db.save_message(chat_id, "user", question)
+        db.save_message(chat_id, "assistant", final_answer)
+
+        return final_answer
 
     except Exception as e:
         return f"Error controlado: No se pudo resolver la consulta en el grafo. (Detalles: {str(e)})"
 
-# --- Ejecución ---
+# --- Demostración de Persistencia y Continuidad ---
 if __name__ == "__main__":
-    print("Inicializando agente inteligente con Groq...")
+    print("Inicializando agente con Memoria SQLite...")
     agent_chain, llm_engine = initialize_agent()
-    print("Agente listo y operando en capa gratuita.\n")
+    db_manager = SQLiteHistoryManager()
     
-    # Prueba 1: Dominio correcto con datos del CSV
-    p1 = "¿Qué temas de IA se publicaron en 2024?"
-    print(f"Pregunta: {p1}")
-    print(f"Respuesta:\n{ask_expert(p1, agent_chain, llm_engine)}\n")
-    print("-" * 50)
-
-    # Prueba 2: Fuera de dominio
-    p2 = "¿Cuál es la capital de Francia?"
-    print(f"Pregunta: {p2}")
-    print(f"Respuesta:\n{ask_expert(p2, agent_chain, llm_engine)}\n")
+    # Identificador único de sesión para las pruebas
+    SESSION_ID = "chat_marketing_ia_01"
+    db_manager.ensure_chat_exists(SESSION_ID, nombre="Sesión de Análisis de Áreas")
+    
+    print("Agente listo. Ejecutando ráfaga secuencial de preguntas...\n")
+    
+    # Interacción 1: Consulta General
+    q1 = "¿Qué temas de IA se publicaron en 2024?"
+    print(f"--> Usuario: {q1}")
+    print(f"--> Agente:\n{ask_expert(SESSION_ID, q1, agent_chain, llm_engine, db_manager)}\n")
+    print("-" * 60)
+    
+    # Interacción 2: Consulta Contextual (Usa la memoria de SQLite para resolver "de esos")
+    q2 = "Y de esos temas que me mencionas, ¿cuál es el que corresponde a 'robótica'?"
+    print(f"--> Usuario: {q2}")
+    print(f"--> Agente:\n{ask_expert(SESSION_ID, q2, agent_chain, llm_engine, db_manager)}\n")
